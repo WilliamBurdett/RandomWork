@@ -10,6 +10,9 @@ import requests
 from botocore.exceptions import ClientError
 from prefect import Flow, task, context, unmapped
 
+from utils.file_utils import delete_file, get_delete_folder_tasks
+from utils.prefect_utils import flatten_iterable_of_variables
+
 DOWNLOADS_URL = "https://api.fda.gov/download.json"
 LOGGER = context.get("logger")
 LOCAL_PATH = "C:\\tmp"
@@ -42,7 +45,7 @@ def download_file_from_url(file_url: str, folder_path: str) -> str:
 
 @task()
 def unzip_file(file_path: str, folder_path: str) -> str:
-    with zipfile.ZipFile(file_path, 'r') as zip_ref:
+    with zipfile.ZipFile(file_path, "r") as zip_ref:
         zip_ref.extractall(folder_path)
     return file_path.replace(".zip", "")
 
@@ -60,13 +63,11 @@ def upload_file(file_name: str, s3_prefix: str):
         return False
     return True
 
+
 @task()
 def list_files_in_s3():
     s3_client = boto3.client("s3")
-    files = s3_client.list_objects(
-        Bucket=BUCKET_NAME,
-        Prefix=S3_PREFIX
-    )
+    files = s3_client.list_objects(Bucket=BUCKET_NAME, Prefix=S3_PREFIX)
 
 
 @task()
@@ -81,14 +82,16 @@ def get_s3_prefix() -> str:
         ]
     )
 
-@task() #TODO: REMOVE
+
+@task()  # TODO: REMOVE
 def print_whatever(anything):
     prefect.context.get("logger").debug(str(anything))
+
 
 @task()
 def create_data_folder() -> str:
     folder_path = os.path.join(SCRIPT_PATH, "raw_data")
-    os.makedirs(folder_path, exist_ok = True)
+    os.makedirs(folder_path, exist_ok=True)
     return folder_path
 
 
@@ -102,6 +105,12 @@ def split_files(file_path: str):
         meta_file.write(json.dumps(full_data["meta"], indent=2))
     with open(results_file_path, "w") as results_file:
         results_file.write(json.dumps(full_data["results"], indent=2))
+    return meta_file_path, results_file_path
+
+@task()
+def zip_file(file_path: str) -> str:
+    file_name = file_path
+    zf = zipfile.ZipFile()
 
 
 def main_full_refresh() -> Flow:
@@ -109,11 +118,23 @@ def main_full_refresh() -> Flow:
         folder_path = create_data_folder()
         s3_prefix = get_s3_prefix()
         file_urls = get_file_urls()
-        zipped_file_paths = download_file_from_url.map(file_url=file_urls, folder_path=unmapped(folder_path))
-        unzipped_file_paths = unzip_file.map(
-            file_path=zipped_file_paths, folder_path=unmapped(folder_path)
+        original_zipped_file_paths = download_file_from_url.map(
+            file_url=file_urls, folder_path=unmapped(folder_path)
         )
-        splitting_files = split_files.map(file_path=unzipped_file_paths)
+        unzipped_file_paths = unzip_file.map(
+            file_path=original_zipped_file_paths, folder_path=unmapped(folder_path)
+        )
+        deleting_original_zipped_files = delete_file.map(
+            file_path=original_zipped_file_paths
+        )
+        deleting_original_zipped_files.set_upstream(unzipped_file_paths)
+        coupled_split_file_paths = split_files.map(file_path=unzipped_file_paths)
+        split_file_paths = flatten_iterable_of_variables(iter=coupled_split_file_paths)
+        split_zipped_file_paths = zip_file.map(file_path=split_file_paths)
+        p = print_whatever(split_file_paths)
+
+        # cleaning_up = get_delete_folder_tasks(folder_path=folder_path, upstream_task=p)
+        # split_zipped_file_paths = zip_file.map()
         # print_whatever(unzipped_files)
         # uploading_files = upload_file.map(
         #     file_name=local_files,
