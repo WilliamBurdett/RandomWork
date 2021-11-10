@@ -96,13 +96,12 @@ def create_data_folder() -> str:
 def split_files(file_path: str):
     with open(file_path, "r") as full_file:
         full_data = json.loads(full_file.read())
-    meta_file_path = file_path.replace(".", "meta.")
-    results_file_path = file_path.replace(".", "results.")
+    meta_file_path = file_path.replace(".", "_meta.")
+    results_file_path = file_path.replace(".", "_results.")
     with open(meta_file_path, "w") as meta_file:
-        meta_file.write(json.dumps(full_data["meta"]))
+        meta_file.write(json.dumps(full_data["meta"], indent=2))
     with open(results_file_path, "w") as results_file:
-        results_file.write(json.dumps(full_data["results"]))
-
+        results_file.write(json.dumps(full_data["results"], indent=2))
 
 
 def main_full_refresh() -> Flow:
@@ -115,7 +114,7 @@ def main_full_refresh() -> Flow:
             file_path=zipped_file_paths, folder_path=unmapped(folder_path)
         )
         splitting_files = split_files.map(file_path=unzipped_file_paths)
-        print_whatever(unzipped_files)
+        # print_whatever(unzipped_files)
         # uploading_files = upload_file.map(
         #     file_name=local_files,
         #     s3_prefix=unmapped(s3_prefix)
@@ -130,7 +129,4 @@ def main_incremental() -> Flow:
 
 
 if __name__ == "__main__":
-    p = os.path.join(SCRIPT_PATH, "raw_data")
-    j = os.path.join(p, "la")
-    print(j)
-    # main_full_refresh().run()
+    main_full_refresh().run()
