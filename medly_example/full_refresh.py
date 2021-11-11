@@ -79,6 +79,7 @@ def upload_file(file_path: str):
     )
     file_name = get_file_name(file_path)
     s3_key = f"{S3_PREFIX}/{file_name}"
+    LOGGER.debug(s3_key)
     try:
         response = s3_client.upload_file(file_path, BUCKET_NAME, s3_key)
     except ClientError as e:
@@ -87,18 +88,14 @@ def upload_file(file_path: str):
     return True
 
 
-
 @task()
-def split_files(file_path: str):
-    with open(file_path, "r") as full_file:
-        full_data = json.loads(full_file.read())
-    meta_file_path = file_path.replace(".", "_meta.")
-    results_file_path = file_path.replace(".", "_results.")
-    with open(meta_file_path, "w") as meta_file:
-        meta_file.write(json.dumps(full_data["meta"], indent=2))
-    with open(results_file_path, "w") as results_file:
-        results_file.write(json.dumps(full_data["results"], indent=2))
-    return meta_file_path, results_file_path
+def split_files(file_path: str, key: str):
+    with open(file_path, "r") as file:
+        full_data = json.loads(file.read())
+    file_path = file_path.replace(".", f"_{key}.")
+    with open(file_path, "w") as file:
+        file.write(json.dumps(full_data[key], indent=2))
+    return file_path
 
 
 @task()
@@ -209,6 +206,32 @@ def save_chunk_to_file(
     return file_path
 
 
+@task()
+def get_max_marketing_start_date(file_path: str) -> str:
+    with open(file_path, "r") as file:
+        results = json.loads(file.read())
+    max_marketing_start_date = "10000101"
+    for result in results:
+        current_marketing_start_date = result.get("marketing_start_date")
+        if current_marketing_start_date is not None:
+            if current_marketing_start_date > max_marketing_start_date:
+                max_marketing_start_date = current_marketing_start_date
+    return max_marketing_start_date
+
+
+@task()
+def save_max_marketing_start_dates(
+    max_marketing_start_dates: List[str], folder_path: str
+) -> str:
+    max_marketing = max_marketing_start_dates.copy()
+    max_marketing.sort(reverse=True)
+    file_name = "max_marketing_start_date.json"
+    file_path = os.path.join(folder_path, file_name)
+    with open(file_path, "w") as file:
+        file.write(json.dumps({"max_marketing_start_date": max_marketing[0]}))
+    return file_path
+
+
 def main_full_refresh() -> Flow:
     request_manager = RequestManager(LOGGER)
     with Flow("pull-nda-data-refresh") as flow:
@@ -222,15 +245,37 @@ def main_full_refresh() -> Flow:
         unzipped_file_paths = unzip_file.map(
             file_path=original_zipped_file_paths, folder_path=unmapped(folder_path)
         )
-        coupled_split_file_paths = split_files.map(file_path=unzipped_file_paths)
-        split_file_paths = flatten_iterable_of_variables(iter=coupled_split_file_paths)
-        split_zipped_file_paths = zip_file.map(file_path=split_file_paths)
-
-        uploading_files = upload_file.map(
-            file_path=split_zipped_file_paths,
+        meta_file_paths = split_files.map(
+            file_path=unzipped_file_paths, key=unmapped("meta")
         )
+        meta_zipped_file_paths = zip_file.map(file_path=meta_file_paths)
+        meta_uploading_files = upload_file.map(
+            file_path=meta_zipped_file_paths,
+        )
+
+        results_file_paths = split_files.map(
+            file_path=unzipped_file_paths, key=unmapped("results")
+        )
+        results_zipped_file_paths = zip_file.map(file_path=results_file_paths)
+        results_uploading_files = upload_file.map(
+            file_path=results_zipped_file_paths,
+        )
+        max_marketing_start_dates = get_max_marketing_start_date.map(
+            file_path=results_file_paths
+        )
+        max_marketing_file_path = save_max_marketing_start_dates(
+            max_marketing_start_dates=max_marketing_start_dates, folder_path=folder_path
+        )
+
+        uploading_max_marketing = upload_file(file_path=max_marketing_file_path)
+
         cleaning_up = get_delete_folder_tasks(
-            folder_path=folder_path, upstream_task=uploading_files
+            folder_path=folder_path,
+            upstream_tasks=[
+                meta_uploading_files,
+                results_uploading_files,
+                uploading_max_marketing,
+            ],
         )
     return flow
 
