@@ -22,6 +22,7 @@ def get_all_file_paths(folder_path: str) -> List[str]:
             file_paths.append(os.path.join(root, file))
     return file_paths
 
+
 @task()
 def get_all_folder_paths(folder_path: str) -> List[str]:
     folder_paths = []
@@ -31,7 +32,9 @@ def get_all_folder_paths(folder_path: str) -> List[str]:
     return folder_paths
 
 
-def get_delete_folder_tasks(folder_path: str, upstream_task: Task = None, upstream_tasks: List[Task] = None) -> Task:
+def get_delete_folder_tasks(
+    folder_path: str, upstream_task: Task = None, upstream_tasks: List[Task] = None
+) -> Task:
     all_file_paths = get_all_file_paths(folder_path)
     if upstream_task is not None:
         all_file_paths.set_upstream(upstream_task)
@@ -42,9 +45,7 @@ def get_delete_folder_tasks(folder_path: str, upstream_task: Task = None, upstre
     all_folder_paths = get_all_folder_paths(folder_path)
     deleting_sub_folders = delete_folder.map(folder_path=all_folder_paths)
     deleting_sub_folders.set_upstream(deleting_files)
-    deleting_root_folder = delete_folder(folder_path=folder_path)
-    deleting_root_folder.set_upstream(deleting_sub_folders)
-    return deleting_root_folder
+    return deleting_sub_folders
 
 
 def get_file_name(file_path: str) -> str:
