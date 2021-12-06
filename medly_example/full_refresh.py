@@ -118,6 +118,7 @@ def get_do_full_refresh() -> bool:
 
 @task()
 def create_data_folder() -> str:
+    LOGGER.info("running locally")
     folder_path = os.path.join(SCRIPT_PATH, "raw_data")
     os.makedirs(folder_path, exist_ok=True)
     return folder_path
@@ -231,6 +232,10 @@ def save_max_marketing_start_dates(
         file.write(json.dumps({"max_marketing_start_date": max_marketing[0]}))
     return file_path
 
+@task()
+def myfail():
+    raise Exception()
+
 
 def main_full_refresh() -> Flow:
     request_manager = RequestManager(LOGGER)
@@ -269,12 +274,15 @@ def main_full_refresh() -> Flow:
 
         uploading_max_marketing = upload_file(file_path=max_marketing_file_path)
 
+        faiiling_task = myfail()
+
         cleaning_up = get_delete_folder_tasks(
             folder_path=folder_path,
             upstream_tasks=[
                 meta_uploading_files,
                 results_uploading_files,
                 uploading_max_marketing,
+                faiiling_task
             ],
         )
     return flow
@@ -314,4 +322,5 @@ def main_incremental() -> Flow:
 
 
 if __name__ == "__main__":
-    main_full_refresh().run()
+    create_data_folder.run()
+    # main_full_refresh().run()
