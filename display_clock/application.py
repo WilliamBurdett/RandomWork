@@ -6,13 +6,27 @@ from utils.threading import Manager
 
 
 def draw_time(canvas: tkinter.Canvas):
+    black = "#fff"
+    white = "#000"
+    black_bg = True
+    canvas_color = white
+    text_color = black
     while True:
         canvas.delete("all")
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if black_bg is True:
+            black_bg = False
+            canvas_color = white
+            text_color = black
+        else:
+            black_bg = True
+            canvas_color = black
+            text_color = white
+        canvas.configure(bg=canvas_color)
         canvas.create_text(
-            5, 15, anchor=tkinter.W, font=("Purisa", 18), text=now, fill="#fff"
+            5, 15, anchor=tkinter.W, font=("Purisa", 18), text=now, fill=text_color
         )
-        sleep(5)
+        sleep(2)
 
 
 def main():
