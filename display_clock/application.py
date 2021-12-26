@@ -9,8 +9,6 @@ def draw_time(canvas: tkinter.Canvas):
     black = "#fff"
     white = "#000"
     black_bg = True
-    canvas_color = white
-    text_color = black
     while True:
         canvas.delete("all")
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -26,7 +24,7 @@ def draw_time(canvas: tkinter.Canvas):
         canvas.create_text(
             5, 15, anchor=tkinter.W, font=("Purisa", 18), text=now, fill=text_color
         )
-        sleep(2)
+        sleep(1)
 
 
 def main():
