@@ -1,4 +1,4 @@
-# Stole  this code from here
+# Stole this code from here
 # https://stackoverflow.com/questions/35160417/threading-queue-working-example
 import time
 from threading import Thread
