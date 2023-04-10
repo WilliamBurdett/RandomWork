@@ -131,3 +131,4 @@ dmypy.json
 */raw_data
 drug-*
 .idea
+ahk_scripts_local\email.ahk

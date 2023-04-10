@@ -1,3 +1,8 @@
 prefect[aws,viz]
 black
 python-dotenv
+pytube3
+wikitables
+numpy
+pandas
+bs4

@@ -1,0 +1,10 @@
+Attribute,Level 1,/Level,/Point
+Strength,20,,
+Dexterity,20,,
+Attack Rating,80,,+5
+Defense,5,,+0.25
+Vitality,20,,
+Life,50,+2,+3
+Stamina,220,+1.25,+1.25
+Energy,25,,
+Mana,25,+2,+1.75
