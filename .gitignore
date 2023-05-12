@@ -131,4 +131,7 @@ dmypy.json
 */raw_data
 drug-*
 .idea
-ahk_scripts_local\email.ahk
+ahk_scripts_local/email.ahk
+/process_mount_sinai_prices/results/*/*.json
+/process_mount_sinai_prices/*.json
+/process_mount_sinai_prices/*.csv

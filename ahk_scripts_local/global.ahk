@@ -19,13 +19,14 @@ F22::
 ;    state:=GetKeyState("F21")
 ;    MsgBox, %state%
 return
-F22::
-    WinGet, active_id, ProcessName, A
-    MsgBox, The active window's ID is "%active_id%".
-;    state:=GetKeyState("F21")
-;    MsgBox, %state%
-return
 
+fast_paste(paste_me){
+    saved := ClipboardAll
+    clipboard := paste_me
+    Send, ^v
+    clipboard := saved
+    ClipSaved := ""
+}
 
 ;#NumpadHome::
 ;return
